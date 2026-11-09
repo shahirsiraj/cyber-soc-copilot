@@ -7,7 +7,8 @@ from datetime import (
 from app.detections import (
     detect_login_burst,
     detect_unusual_privilege_changes,
-    detect_suspicious_transfer
+    detect_suspicious_transfer,
+    run_all_detections,
 )
 
 from app.models import (
@@ -339,3 +340,52 @@ def test_large_transfer_to_known_destination_is_not_alerted():
     )
 
     assert alerts == []
+
+def test_run_all_detections_combines_alerts():
+
+    timestamp = datetime(
+        2026,
+        11,
+        7,
+        2,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    events = [
+        SecurityEvent(
+            event_id="priv-1",
+            timestamp=timestamp,
+            source="test",
+            event_type=(
+                EventType.PRIVILEGE_CHANGE
+            ),
+            username="charlie",
+            message="Privilege change",
+            details={
+                "new_role": "administrator",
+            },
+        ),
+
+        SecurityEvent(
+            event_id="transfer-1",
+            timestamp=timestamp,
+            source="test",
+            event_type=(
+                EventType.LARGE_DATA_TRANSFER
+            ),
+            username="diana",
+            destination_ip="198.51.100.99",
+            message="Large transfer",
+            details={
+                "bytes": 8_000_000_000,
+                "destination_known": False,
+            },
+        ),
+    ]
+
+    alerts = run_all_detections(
+        events
+    )
+
+    assert len(alerts) == 2

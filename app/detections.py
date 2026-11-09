@@ -286,3 +286,29 @@ def detect_suspicious_transfer(
             )
 
     return alerts
+
+def run_all_detections(
+    events: list[SecurityEvent],
+) -> list[SecurityAlert]:
+
+    alerts: list[SecurityAlert] = []
+
+    alerts.extend(
+        detect_login_burst(
+            events
+        )
+    )
+
+    alerts.extend(
+        detect_unusual_privilege_changes(
+            events
+        )
+    )
+
+    alerts.extend(
+        detect_suspicious_transfer(
+            events
+        )
+    )
+
+    return alerts
