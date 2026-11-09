@@ -160,3 +160,61 @@ def detect_login_burst(
             break
 
     return alerts
+
+def detect_unusual_privilege_changes(
+    events: list[SecurityEvent],
+) -> list[SecurityAlert]:
+
+    alerts: list[SecurityAlert] = []
+
+    for event in events:
+
+        if (
+            event.event_type
+            != EventType.PRIVILEGE_CHANGE
+        ):
+            continue
+
+        new_role = event.details.get(
+            "new_role"
+        )
+
+        outside_change_window = not (
+            8
+            <= event.timestamp.hour
+            < 18
+        )
+
+        if (
+            new_role == "administrator"
+            and outside_change_window
+        ):
+
+            alerts.append(
+                SecurityAlert(
+                    alert_id=(
+                        f"privilege-"
+                        f"{event.event_id}"
+                    ),
+                    alert_type=(
+                        "unusual_privilege_change"
+                    ),
+                    severity="high",
+                    username=event.username,
+                    summary=(
+                        "Administrator privileges "
+                        "were assigned outside "
+                        "the expected change window."
+                    ),
+                    evidence_event_ids=[
+                        event.event_id
+                    ],
+                    details={
+                        "new_role": new_role,
+                        "event_hour":
+                            event.timestamp.hour,
+                    },
+                )
+            )
+
+    return alerts
