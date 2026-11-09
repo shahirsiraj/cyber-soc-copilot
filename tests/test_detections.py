@@ -389,3 +389,50 @@ def test_run_all_detections_combines_alerts():
     )
 
     assert len(alerts) == 2
+
+def test_normal_activity_does_not_generate_alerts():
+
+    timestamp = datetime(
+        2026,
+        11,
+        7,
+        10,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    events = [
+        SecurityEvent(
+            event_id="normal-login-1",
+            timestamp=timestamp,
+            source="test",
+            event_type=(
+                EventType.LOGIN_SUCCESS
+            ),
+            username="alice",
+            source_ip="10.0.0.10",
+            message="Successful login",
+        ),
+
+        SecurityEvent(
+            event_id="normal-transfer-1",
+            timestamp=timestamp,
+            source="test",
+            event_type=(
+                EventType.LARGE_DATA_TRANSFER
+            ),
+            username="backup-service",
+            destination_ip="10.10.10.20",
+            message="Scheduled backup",
+            details={
+                "bytes": 15_000_000_000,
+                "destination_known": True,
+            },
+        ),
+    ]
+
+    alerts = run_all_detections(
+        events
+    )
+
+    assert alerts == []
