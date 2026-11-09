@@ -7,6 +7,7 @@ from datetime import (
 from app.detections import (
     detect_login_burst,
     detect_unusual_privilege_changes,
+    detect_suspicious_transfer
 )
 
 from app.models import (
@@ -260,6 +261,81 @@ def test_privilege_change_during_normal_hours_is_not_alerted():
         detect_unusual_privilege_changes(
             [event]
         )
+    )
+
+    assert alerts == []
+
+def test_suspicious_outbound_transfer_detected():
+
+    event = SecurityEvent(
+        event_id="transfer-1",
+        timestamp=datetime(
+            2026,
+            11,
+            7,
+            14,
+            0,
+            tzinfo=timezone.utc,
+        ),
+        source="test",
+        event_type=(
+            EventType.LARGE_DATA_TRANSFER
+        ),
+        username="diana",
+        source_ip="10.0.0.20",
+        destination_ip="198.51.100.99",
+        message=(
+            "Large outbound data transfer"
+        ),
+        details={
+            "bytes": 8_000_000_000,
+            "destination_known": False,
+        },
+    )
+
+    alerts = detect_suspicious_transfer(
+        [event]
+    )
+
+    assert len(alerts) == 1
+
+    assert (
+        alerts[0].alert_type
+        == "suspicious_outbound_transfer"
+    )
+
+    assert alerts[0].severity == "high"
+
+def test_large_transfer_to_known_destination_is_not_alerted():
+
+    event = SecurityEvent(
+        event_id="transfer-2",
+        timestamp=datetime(
+            2026,
+            11,
+            7,
+            14,
+            0,
+            tzinfo=timezone.utc,
+        ),
+        source="test",
+        event_type=(
+            EventType.LARGE_DATA_TRANSFER
+        ),
+        username="backup-service",
+        source_ip="10.0.0.50",
+        destination_ip="10.10.10.20",
+        message=(
+            "Scheduled backup transfer"
+        ),
+        details={
+            "bytes": 15_000_000_000,
+            "destination_known": True,
+        },
+    )
+
+    alerts = detect_suspicious_transfer(
+        [event]
     )
 
     assert alerts == []

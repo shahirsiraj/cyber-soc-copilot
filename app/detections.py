@@ -218,3 +218,71 @@ def detect_unusual_privilege_changes(
             )
 
     return alerts
+
+def detect_suspicious_transfer(
+    events: list[SecurityEvent],
+) -> list[SecurityAlert]:
+
+    alerts: list[SecurityAlert] = []
+
+    for event in events:
+
+        if (
+            event.event_type
+            != EventType.LARGE_DATA_TRANSFER
+        ):
+            continue
+
+        transferred_bytes = (
+            event.details.get(
+                "bytes",
+                0,
+            )
+        )
+
+        destination_known = (
+            event.details.get(
+                "destination_known",
+                True,
+            )
+        )
+
+        if (
+            transferred_bytes
+            >= 1_000_000_000
+            and not destination_known
+        ):
+
+            alerts.append(
+                SecurityAlert(
+                    alert_id=(
+                        f"transfer-"
+                        f"{event.event_id}"
+                    ),
+                    alert_type=(
+                        "suspicious_outbound_transfer"
+                    ),
+                    severity="high",
+                    username=event.username,
+                    summary=(
+                        "Large outbound data "
+                        "transfer to an "
+                        "unknown destination."
+                    ),
+                    evidence_event_ids=[
+                        event.event_id
+                    ],
+                    details={
+                        "bytes":
+                            transferred_bytes,
+
+                        "destination_ip":
+                            event.destination_ip,
+
+                        "destination_known":
+                            destination_known,
+                    },
+                )
+            )
+
+    return alerts
